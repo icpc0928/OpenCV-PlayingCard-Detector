@@ -235,8 +235,8 @@ def is_card_is_match(origin_card):
     return False
 
 # 測試方法
-# root_directory = 'C:/Users/LeoAlliance/Desktop/analysis/analysis'  # 替換為你的根目錄路徑
-root_directory = 'C:/Users/LeoAlliance/Desktop/fail/test'  # 替換為你的根目錄路徑
+root_directory = 'C:/Users/LeoAlliance/Desktop/analysis/analysis'  # 替換為你的根目錄路徑
+# root_directory = 'C:/Users/LeoAlliance/Desktop/fail/test'  # 替換為你的根目錄路徑
 result_images = find_and_process_images(
     root_dir=root_directory,               # 根目錄
     target_prefixes=['banker', 'player'],  # 符合條件的檔案前綴

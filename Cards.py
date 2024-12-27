@@ -186,12 +186,132 @@ def find_cards(thresh_image):
 
     return cnts_sort, cnt_is_card
 
+
+def get_best_cut_line(query_thresh):
+    temp_y = 185
+    t_range = 65
+    top_bottom_threshold = 40
+    width_threshold = 10  # 左右邊界判斷的閾值
+    default_cut_line = temp_y  # 預設值
+
+    # 複製 query_thresh 並畫輔助線
+    temp_Q = query_thresh.copy()
+
+    # cv2.line(temp_Q, (0, temp_y+t_range), (temp_Q.shape[1], temp_y+t_range), (255,255,255), 2)
+    # cv2.line(temp_Q, (0, temp_y), (temp_Q.shape[1], temp_y), (255,255,255), 2)
+    # cv2.line(temp_Q, (0, temp_y-t_range), (temp_Q.shape[1], temp_y-t_range), (255,255,255), 2)
+    # 找輪廓和層次結構
+    temp_query_cnts, hierarchy = cv2.findContours(query_thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+    # 將外部輪廓與內部輪廓分開
+    external_contours = []
+    internal_contours = []
+    for idx, cnt in enumerate(temp_query_cnts):
+        _, _, _, parent = hierarchy[0][idx]
+        if parent == -1:  # 沒有父輪廓，是外部輪廓
+            external_contours.append((cnt, idx))
+        else:  # 有父輪廓，是內部輪廓
+            internal_contours.append((cnt, idx))
+
+    # 對外部輪廓按面積從大到小排序
+    external_contours = sorted(external_contours, key=lambda x: cv2.contourArea(x[0]), reverse=True)
+
+    # 儲存結果
+    points_within_range = []  # 儲存點數與花色的座標
+    left_right_pairs = []    # 儲存所有輪廓的 Left 和 Right
+    # 影像寬高
+    img_height, img_width = temp_Q.shape
+
+    # 處理外部輪廓
+    for cnt, idx in external_contours:
+        area = cv2.contourArea(cnt)
+        if area < MIN_AREA_THRESHOLD:  # 忽略小面積輪廓
+            continue
+
+        # 計算四個極值點
+        points = cnt[:, 0, :]  # 獲取輪廓點的 x 和 y 值
+        top = tuple(points[points[:, 1].argmin()])    # y 最小
+        bottom = tuple(points[points[:, 1].argmax()]) # y 最大
+        left = tuple(points[points[:, 0].argmin()])   # x 最小
+        right = tuple(points[points[:, 0].argmax()])  # x 最大
+
+        # 忽略 top 在 0~50 且 bottom 在影像底部最後 50 像素的輪廓
+        if 0 <= top[1] <= top_bottom_threshold and (img_height - top_bottom_threshold) <= bottom[1] <= img_height:
+            continue
+        # 忽略寬度覆蓋整個左邊和右邊的輪廓
+        if left[0] <= width_threshold and (img_width - width_threshold) <= right[0]:
+            continue
+        if  bottom[1] - top[1] > 180:  # 忽略高度大於 185 的輪廓
+            continue
+
+        # 檢查點是否在 temp_y +- t_range 中
+        if temp_y - t_range <= bottom[1] <= temp_y + t_range and top[1] <= temp_y - t_range:
+            points_within_range.append(('bottom', bottom[1]))
+
+        if temp_y - t_range <= top[1] <= temp_y + t_range and bottom[1] >= temp_y + t_range:
+            points_within_range.append(('top', top[1]))
+
+
+        # 保存 Left 和 Right
+        left_right_pairs.append((left, right))
+
+        # 在影像上標註這些點（可視化輔助）
+        cv2.circle(temp_Q, top, 3, (82, 157, 255), -1)
+        cv2.circle(temp_Q, bottom, 3, (82, 157, 255), -1)
+        cv2.circle(temp_Q, left, 3, (82, 157, 255), -1)
+        cv2.circle(temp_Q, right, 3, (82, 157, 255), -1)
+
+    # 第一判斷：檢查是否有點數與花色
+    if len(points_within_range) == 2:
+        # 找到點數的底部與花色的頭部，取中間值
+        bottom_y = [p[1] for p in points_within_range if p[0] == 'bottom']
+        top_y = [p[1] for p in points_within_range if p[0] == 'top']
+
+
+
+        if bottom_y and top_y:
+            result1 = (min(bottom_y) + max(top_y)) // 2
+            # print(f"result1: {result1}")
+            # # 顯示結果影像
+            # cv2.line(temp_Q, (0, result1), (temp_Q.shape[1], result1), (82, 157, 255), 1)
+            # cv2.imshow('Contours with Extreme Points', temp_Q)
+            # cv2.waitKey(0)
+            return result1
+
+    # 第二判斷：檢查斜率相近的 Left 和 Right
+    if len(left_right_pairs) >= 2:
+        for i in range(len(left_right_pairs)):
+            for j in range(i + 1, len(left_right_pairs)):
+                # 計算兩對點的斜率
+                left1, right1 = left_right_pairs[i]
+                left2, right2 = left_right_pairs[j]
+
+                slope1 = (right1[1] - left1[1]) / (right1[0] - left1[0] + 1e-6)
+                slope2 = (right2[1] - left2[1]) / (right2[0] - left2[0] + 1e-6)
+                if abs(slope1 - slope2) < 0.1:  # 斜率接近閾值
+                    top_pair = left_right_pairs[i] if left1[1] < left2[1] else left_right_pairs[j]
+                    bottom_pair = left_right_pairs[j] if left1[1] < left2[1] else left_right_pairs[i]
+                    result2 = (top_pair[0][1] + bottom_pair[1][1]) // 2
+                    # print(f"result2: {result2}")
+                    # cv2.line(temp_Q, (0, result2), (temp_Q.shape[1], result2), (82, 157, 255), 1)
+                    # cv2.imshow('Contours with Extreme Points', temp_Q)
+                    # cv2.waitKey(0)
+                    return result2
+    # print("default")
+
+    # cv2.line(temp_Q, (0, default_cut_line), (temp_Q.shape[1], default_cut_line), (82, 157, 255), 1)
+    # cv2.imshow('Contours with Extreme Points', temp_Q)
+    # cv2.waitKey(0)
+    # 如果都無法判斷，返回預設值
+    return default_cut_line
+
+
+
 def preprocess_card(contour, image):
     """Uses contour to find information about the query card. Isolates rank
     and suit images from the card.
     """
 
-    # Initialize new Query_card object
     qCard = Query_card()
 
     qCard.contour = contour
@@ -231,14 +351,9 @@ def preprocess_card(contour, image):
     if (thresh_level <= 0):
         thresh_level = 1
     retval, query_thresh = cv2.threshold(Qcorner_zoom, thresh_level, 255, cv2. THRESH_BINARY_INV)
-    temp_y = 190
-    # 咱要設法突破這條線要在哪個高度
 
-    # cv2.line(query_thresh, (0,temp_y), (query_thresh.shape[1], temp_y), (145,145,145), 2)
-    # cv2.imshow('query_thresh', query_thresh)
-    # key = cv2.waitKey(0)
-    # print("query_thresh height: ", query_thresh.shape[0])
-    # print("query_thresh width: ", query_thresh.shape[1])
+    temp_y = get_best_cut_line(query_thresh)
+
 
     # Split in to top and bottom half (top shows rank, bottom shows suit)  分離點數和花色部分
     Qrank = query_thresh[10:temp_y, 0:CORNER_WIDTH*4]  # 提取點數部分
@@ -260,7 +375,7 @@ def preprocess_card(contour, image):
             area = cv2.contourArea(Qrank_cnts[ri])
             if area < MIN_AREA_THRESHOLD:   # 面積太小的輪廓不處理
                 continue
-            # todo 不應該只算一個輪廓 搞不好有多個
+            # 不應該只算一個輪廓 搞不好有多個
             x1,y1,w1,h1 = cv2.boundingRect(Qrank_cnts[ri])
             # print("面積: ", cv2.contourArea(Qrank_cnts[ri]))
 
@@ -273,8 +388,7 @@ def preprocess_card(contour, image):
             # cv2.waitKey(0)
 
 
-    # Find suit contour and bounding rectangle, isolate and find largest contour  花色部分的輪廓提取和處理
-
+    # 花色部分的輪廓提取和處理
     Qsuit_cnts, hier = cv2.findContours(Qsuit, cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
     Qsuit_cnts = sorted(Qsuit_cnts, key=cv2.contourArea,reverse=True)
 
