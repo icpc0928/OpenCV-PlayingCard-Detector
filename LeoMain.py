@@ -103,6 +103,20 @@ def write_result(root, processed_results):
         json.dump(str_file, report_file, indent=4)
 
 
+def print_origin_card(origin_card):
+    print(f"Card name: {origin_card.name}")
+    print(f"Best rank match: {origin_card.best_rank_match}")
+    print(f"Best suit match: {origin_card.best_suit_match}")
+    print(f"Rank diff: {origin_card.rank_diff}")
+    print(f"Suit diff: {origin_card.suit_diff}")
+    print(f"Best rank index: {origin_card.best_rank_index}")
+    print(f"Best suit index: {origin_card.best_suit_index}")
+    print(f"Rank images: {len(origin_card.rank_img)}")
+    print(f"Suit images: {len(origin_card.suit_img)}")
+    print(f"Result image shape: {origin_card.result_img.shape}")
+    print("")
+    pass
+
 
 def find_and_process_images(root_dir, target_prefixes, card_image_width, card_image_height, black_canvas_width, black_canvas_height, interval=10):
     """
@@ -205,6 +219,7 @@ def find_and_process_images(root_dir, target_prefixes, card_image_width, card_im
                         rotate_degree += 1
 
                 if origin_card is not None:
+                    # print_origin_card(origin_card)
                     processed_results.append(origin_card)
             # end_time = time.time()
             # # 計算運行時間
@@ -220,7 +235,8 @@ def is_card_is_match(origin_card):
     return False
 
 # 測試方法
-root_directory = 'C:/Users/LeoAlliance/Desktop/analysis/analysis'  # 替換為你的根目錄路徑
+# root_directory = 'C:/Users/LeoAlliance/Desktop/analysis/analysis'  # 替換為你的根目錄路徑
+root_directory = 'C:/Users/LeoAlliance/Desktop/fail/test'  # 替換為你的根目錄路徑
 result_images = find_and_process_images(
     root_dir=root_directory,               # 根目錄
     target_prefixes=['banker', 'player'],  # 符合條件的檔案前綴

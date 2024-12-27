@@ -231,13 +231,18 @@ def preprocess_card(contour, image):
     if (thresh_level <= 0):
         thresh_level = 1
     retval, query_thresh = cv2.threshold(Qcorner_zoom, thresh_level, 255, cv2. THRESH_BINARY_INV)
+    temp_y = 190
+    # 咱要設法突破這條線要在哪個高度
+
+    # cv2.line(query_thresh, (0,temp_y), (query_thresh.shape[1], temp_y), (145,145,145), 2)
     # cv2.imshow('query_thresh', query_thresh)
+    # key = cv2.waitKey(0)
     # print("query_thresh height: ", query_thresh.shape[0])
     # print("query_thresh width: ", query_thresh.shape[1])
 
     # Split in to top and bottom half (top shows rank, bottom shows suit)  分離點數和花色部分
-    Qrank = query_thresh[10:185, 0:CORNER_WIDTH*4]  # 提取點數部分
-    Qsuit = query_thresh[186:CORNER_HEIGHT*4, 0:CORNER_WIDTH*4]  # 提取花色部分
+    Qrank = query_thresh[10:temp_y, 0:CORNER_WIDTH*4]  # 提取點數部分
+    Qsuit = query_thresh[temp_y+1:CORNER_HEIGHT*4, 0:CORNER_WIDTH*4]  # 提取花色部分
     # cv2.imshow('Qrank.jpg', Qrank)
     # cv2.imshow('Qsuit.jpg', Qsuit)
     # key = cv2.waitKey(0)
