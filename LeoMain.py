@@ -1,4 +1,5 @@
 import os
+import time
 
 import cv2
 import json
@@ -75,11 +76,17 @@ def write_result(root, processed_results):
         # 保存結果圖片
         path = os.path.join(root, str_path)
         cv2.imwrite(os.path.join(path, str(new_name)), img)
+        if len(card.rank_img) > 0:
+            if card.best_rank_index >= len(card.rank_img) :
+                card.best_rank_index = 0
 
-        rk_img = card.rank_img
-        su_img = card.suit_img
-        cv2.imwrite(os.path.join(path, str(res_name + 'rank.jpg')), rk_img)
-        cv2.imwrite(os.path.join(path, str(res_name + 'suit .jpg')), su_img)
+            rk_img = card.rank_img[card.best_rank_index]
+            cv2.imwrite(os.path.join(path, str(res_name + 'rank.jpg')), rk_img)
+        if len(card.suit_img) > 0:
+            if card.best_suit_index >= len(card.suit_img):
+                card.best_suit_index = 0
+            su_img = card.suit_img[card.best_suit_index]
+            cv2.imwrite(os.path.join(path, str(res_name + 'suit.jpg')), su_img)
 
         str_file.append(
             {
@@ -129,6 +136,8 @@ def find_and_process_images(root_dir, target_prefixes, card_image_width, card_im
             processed_results = []
             # 呼叫處理方法處理所有照片
             for target_file in target_files:
+                # 紀錄時間
+                # start_time = time.time()
                 edge = 0
                 max_attempts = 50
 
@@ -157,20 +166,50 @@ def find_and_process_images(root_dir, target_prefixes, card_image_width, card_im
                             break
                     edge += 1
 
-                if edge == max_attempts:
-                    print(f"Failed to recognize card: {target_file} after {max_attempts} attempts., root: {root}")
-                # 嘗試旋轉0
-                rotate_degree = 1
-                while rotate_degree <= 10:
-                    card = Leo001.rec_card(root + '/' + target_file, target_file, 0, 0, is_rotate=True, rotate_degree=rotate_degree)
-                    origin_card = merge_cards(origin_card, card)
-                    if is_card_is_match(origin_card):
-                        break
-                    rotate_degree += 1
+                # if edge == max_attempts:
+                #     print(f"Failed to recognize card: {target_file} after {max_attempts} attempts., root: {root}")
 
+                if not is_card_is_match(origin_card):
+                    # 嘗試旋轉0
+                    rotate_degree = -1
+                    rotate_180 = 180
+                    while rotate_degree <= 10:
+                        # 轉1
+                        rot = rotate_degree
+                        card = Leo001.rec_card(root + '/' + target_file, target_file, 0, 0, is_rotate=True,
+                                               rotate_degree=rot)
+                        origin_card = merge_cards(origin_card, card)
+                        if is_card_is_match(origin_card):
+                            break
+                        # 180度 轉1
+                        rot = rotate_180 + rotate_degree
+                        card = Leo001.rec_card(root + '/' + target_file, target_file, 0, 0, is_rotate=True,
+                                               rotate_degree=rot)
+                        origin_card = merge_cards(origin_card, card)
+                        if is_card_is_match(origin_card):
+                            break
+                        # 倒轉1
+                        rot = -rotate_degree
+                        card = Leo001.rec_card(root + '/' + target_file, target_file, 0, 0, is_rotate=True,
+                                               rotate_degree=rot)
+                        origin_card = merge_cards(origin_card, card)
+                        if is_card_is_match(origin_card):
+                            break
+                        # 180度 倒轉1
+                        rot = -rotate_degree - rotate_180
+                        card = Leo001.rec_card(root + '/' + target_file, target_file, 0, 0, is_rotate=True,
+                                               rotate_degree=rot)
+                        origin_card = merge_cards(origin_card, card)
+                        if is_card_is_match(origin_card):
+                            break
+                        rotate_degree += 1
 
                 if origin_card is not None:
                     processed_results.append(origin_card)
+            # end_time = time.time()
+            # # 計算運行時間
+            # elapsed_time = end_time - start_time
+            # print(f"運行時間: {elapsed_time:.4f} 秒")
             write_result(root, processed_results)
             # processed_results.append((root, result_image))  # 保存結果
     # return processed_results
@@ -181,7 +220,7 @@ def is_card_is_match(origin_card):
     return False
 
 # 測試方法
-root_directory = 'C:/Users/LeoAlliance/Desktop/analysis/analysis/2024-11-21_18-00-55'  # 替換為你的根目錄路徑
+root_directory = 'C:/Users/LeoAlliance/Desktop/analysis/analysis'  # 替換為你的根目錄路徑
 result_images = find_and_process_images(
     root_dir=root_directory,               # 根目錄
     target_prefixes=['banker', 'player'],  # 符合條件的檔案前綴

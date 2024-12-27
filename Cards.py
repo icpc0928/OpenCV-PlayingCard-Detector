@@ -37,6 +37,9 @@ SUIT_DIFF_MAX = 700
 CARD_MAX_AREA = 120000
 CARD_MIN_AREA = 25000
 
+# 輪廓最小判斷面積
+MIN_AREA_THRESHOLD = 2000
+
 font = cv2.FONT_HERSHEY_SIMPLEX
 
 ### Structures to hold query card and train card information ###
@@ -51,8 +54,10 @@ class Query_card:
         self.corner_pts = [] # Corner points of card
         self.center = [] # Center point of card
         self.warp = [] # 200x300, flattened, grayed, blurred image
-        self.rank_img = [] # Thresholded, sized image of card's rank
-        self.suit_img = [] # Thresholded, sized image of card's suit
+        self.rank_img = [] # Thresholded, sized image of card's rank            //改成多個圖片
+        self.best_rank_index = 0 #這個是最好的rank圖片 只會有一張
+        self.suit_img = [] # Thresholded, sized image of card's suit            //改成多個圖片
+        self.best_suit_index = 0 #這個是最好的suit圖片 只會有一張
         self.best_rank_match = "Unknown" # Best matched rank
         self.best_suit_match = "Unknown" # Best matched suit
         self.rank_diff = 0 # Difference between rank image and best matched train rank image
@@ -244,14 +249,23 @@ def preprocess_card(contour, image):
 
     # Find bounding rectangle for largest contour, use it to resize query rank
     # image to match dimensions of the train rank image
+    # cv2.imshow('Qrank', Qrank)
     if len(Qrank_cnts) != 0:
-        # todo 不應該只算一個輪廓 搞不好有多個
-        x1,y1,w1,h1 = cv2.boundingRect(Qrank_cnts[0])
-        Qrank_roi = Qrank[y1:y1+h1, x1:x1+w1]
-        Qrank_sized = cv2.resize(Qrank_roi, (RANK_WIDTH,RANK_HEIGHT), 0, 0)
-        qCard.rank_img = Qrank_sized
-        # cv2.imshow('Qrank_sized', Qrank_sized)
+        for ri in range(len(Qrank_cnts)):
+            area = cv2.contourArea(Qrank_cnts[ri])
+            if area < MIN_AREA_THRESHOLD:   # 面積太小的輪廓不處理
+                continue
+            # todo 不應該只算一個輪廓 搞不好有多個
+            x1,y1,w1,h1 = cv2.boundingRect(Qrank_cnts[ri])
+            # print("面積: ", cv2.contourArea(Qrank_cnts[ri]))
 
+
+            Qrank_roi = Qrank[y1:y1+h1, x1:x1+w1]
+            Qrank_sized = cv2.resize(Qrank_roi, (RANK_WIDTH,RANK_HEIGHT), 0, 0)
+            # qCard.rank_img = Qrank_sized
+            qCard.rank_img.append(Qrank_sized)
+            # cv2.imshow('Qrank_sized', Qrank_sized)
+            # cv2.waitKey(0)
 
 
     # Find suit contour and bounding rectangle, isolate and find largest contour  花色部分的輪廓提取和處理
@@ -259,17 +273,21 @@ def preprocess_card(contour, image):
     Qsuit_cnts, hier = cv2.findContours(Qsuit, cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
     Qsuit_cnts = sorted(Qsuit_cnts, key=cv2.contourArea,reverse=True)
 
-
     # Find bounding rectangle for largest contour, use it to resize query suit
     # image to match dimensions of the train suit image
     if len(Qsuit_cnts) != 0:
-        x2,y2,w2,h2 = cv2.boundingRect(Qsuit_cnts[0])
-        Qsuit_roi = Qsuit[y2:y2+h2, x2:x2+w2]
-        Qsuit_sized = cv2.resize(Qsuit_roi, (SUIT_WIDTH, SUIT_HEIGHT), 0, 0)
-        qCard.suit_img = Qsuit_sized
-        # print("get suit_img: ", qCard.suit_img)
-        # cv2.imshow('Qsuit_sized', Qsuit_sized)
-    # key = cv2.waitKey(0)
+        for si in range(len(Qsuit_cnts)):
+            area = cv2.contourArea(Qsuit_cnts[si])
+            if area < MIN_AREA_THRESHOLD:   # 面積太小的輪廓不處理
+                continue
+
+            x2,y2,w2,h2 = cv2.boundingRect(Qsuit_cnts[0])
+            Qsuit_roi = Qsuit[y2:y2+h2, x2:x2+w2]
+            Qsuit_sized = cv2.resize(Qsuit_roi, (SUIT_WIDTH, SUIT_HEIGHT), 0, 0)
+            qCard.suit_img.append(Qsuit_sized)
+            # cv2.imshow('Qsuit_sized', Qsuit_sized)
+            # print("花色面積: ", area)
+            # cv2.waitKey(0)
     return qCard
 
 def match_card(qCard, train_ranks, train_suits):
@@ -287,29 +305,38 @@ def match_card(qCard, train_ranks, train_suits):
     # the img size is zero, so skip the differencing process
     # (card will be left as Unknown)
     if (len(qCard.rank_img) != 0) and (len(qCard.suit_img) != 0):
-        
-        # Difference the query card rank image from each of the train rank images,
-        # and store the result with the least difference
-        for Trank in train_ranks:
-                # print("------")
-                diff_img = cv2.absdiff(qCard.rank_img, Trank.img)
-                rank_diff = int(np.sum(diff_img)/255)
-                
-                if rank_diff < best_rank_match_diff:
-                    best_rank_diff_img = diff_img
-                    best_rank_match_diff = rank_diff
-                    best_rank_name = Trank.name
 
-        # Same process with suit images
-        for Tsuit in train_suits:
-                # print("=====")
-                diff_img = cv2.absdiff(qCard.suit_img, Tsuit.img)
-                suit_diff = int(np.sum(diff_img)/255)
-                
-                if suit_diff < best_suit_match_diff:
-                    best_suit_diff_img = diff_img
-                    best_suit_match_diff = suit_diff
-                    best_suit_name = Tsuit.name
+        for ri in range(len(qCard.rank_img)):
+            # 判斷點數
+            for Trank in train_ranks:
+                    # print("------")
+                    # 這裡的rank_img可能是多組輪廓
+                    # 計算兩張影像對應像素的絕對差異
+                    diff_img = cv2.absdiff(qCard.rank_img[ri], Trank.img)
+                    rank_diff = int(np.sum(diff_img)/255)
+                    # print(f"ri:{ri}, 比較:{Trank.name} rank_diff: {rank_diff}" )
+                    # cv2.imshow('diff_img', diff_img)
+                    # cv2.waitKey(0)
+                    if rank_diff < best_rank_match_diff:
+                        best_rank_diff_img = diff_img
+                        best_rank_match_diff = rank_diff
+                        best_rank_name = Trank.name
+                        qCard.best_rank_index = ri
+
+        for si in range(len(qCard.suit_img)):
+            # Same process with suit images
+            for Tsuit in train_suits:
+                    # print("=====")
+                    diff_img = cv2.absdiff(qCard.suit_img[si], Tsuit.img)
+                    suit_diff = int(np.sum(diff_img)/255)
+                    # print(f"ri:{ri}, 比較:{Trank.name} rank_diff: {suit_diff}" )
+                    # cv2.imshow('diff_img', diff_img)
+                    # cv2.waitKey(0)
+                    if suit_diff < best_suit_match_diff:
+                        best_suit_diff_img = diff_img
+                        best_suit_match_diff = suit_diff
+                        best_suit_name = Tsuit.name
+                        qCard.best_suit_index = si
 
     # Combine best rank match and best suit match to get query card's identity.
     # If the best matches have too high of a difference value, card identity
