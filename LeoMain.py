@@ -36,7 +36,7 @@ def merge_cards(original_card, new_card):
     if new_card.suit_diff > original_card.suit_diff != 0:
         setattr(new_card, "suit_diff", original_card.suit_diff)
         setattr(new_card, "best_suit_match", original_card.best_suit_match)
-    print(f"match: {new_card.best_rank_match}, diff: {new_card.best_suit_match}")
+
 
     return new_card
 def is_default_value_without_diff_and_match(value, key):
@@ -131,132 +131,120 @@ def print_origin_card(origin_card):
     print("")
     pass
 
+def rec_card_process(img_path, img_name):
+    edge = 0
+    max_attempts = 50
+    origin_card = Cards.Query_card()
+    origin_card.name = img_name
+    while edge < max_attempts:
+        edge_w = edge // 10
+        edge_h = edge % 10
+        card = Leo001.rec_card(img_path, img_name, edge_w, edge_h)
+        origin_card = merge_cards(origin_card, card)
+        if is_card_is_match(origin_card):
+            break
+        card = Leo001.rec_card(img_path, img_name, edge_w, edge_h, is_rotate=True)
+        origin_card = merge_cards(origin_card, card)
+        if is_card_is_match(origin_card):
+            break
+        card = Leo001.rec_card_with_black_canvas(img_path, img_name, edge_w, edge_h)
+        if card is not None:
+            origin_card = merge_cards(origin_card, card)
+            if is_card_is_match(origin_card):
+                break
+        card = Leo001.rec_card_with_black_canvas(img_path, img_name, edge_w, edge_h, is_rotate=True)
+        if card is not None:
+            origin_card = merge_cards(origin_card, card)
+            if is_card_is_match(origin_card):
+                break
+        edge += 1
 
-def find_and_process_images(root_dir, target_prefixes, card_image_width, card_image_height, black_canvas_width, black_canvas_height, interval=10):
+    # if edge == max_attempts:
+    #     print(f"Failed to recognize card: {target_file} after {max_attempts} attempts., root: {root}")
+
+    if not is_card_is_match(origin_card):
+        # 嘗試旋轉0
+        rotate_degree = -1
+        rotate_180 = 180
+        while rotate_degree <= 10:
+            # 轉1
+            rot = rotate_degree
+            card = Leo001.rec_card(img_path, img_name, 0, 0, is_rotate=True,
+                                   rotate_degree=rot)
+            origin_card = merge_cards(origin_card, card)
+            if is_card_is_match(origin_card):
+                break
+            # 180度 轉1
+            rot = rotate_180 + rotate_degree
+            card = Leo001.rec_card(img_path, img_name, 0, 0, is_rotate=True,
+                                   rotate_degree=rot)
+            origin_card = merge_cards(origin_card, card)
+            if is_card_is_match(origin_card):
+                break
+            # 倒轉1
+            rot = -rotate_degree
+            card = Leo001.rec_card(img_path, img_name, 0, 0, is_rotate=True,
+                                   rotate_degree=rot)
+            origin_card = merge_cards(origin_card, card)
+            if is_card_is_match(origin_card):
+                break
+            # 180度 倒轉1
+            rot = -rotate_degree - rotate_180
+            card = Leo001.rec_card(img_path, img_name, 0, 0, is_rotate=True,
+                                   rotate_degree=rot)
+            origin_card = merge_cards(origin_card, card)
+            if is_card_is_match(origin_card):
+                break
+            rotate_degree += 1
+    return origin_card
+
+
+def find_and_process_images(root_dir, target_prefixes):
     """
     遍歷所有資料夾，找到以指定前綴開頭的照片，並處理所在資料夾中的所有照片。
 
     :param root_dir: 根目錄，將從這裡開始遍歷所有資料夾
     :param target_prefixes: 目標照片的前綴列表（如 ['banker', 'player']）
-    :param card_image_width: 卡片圖片縮放後的寬度
-    :param card_image_height: 卡片圖片縮放後的高度
-    :param black_canvas_width: 黑色背景的寬度
-    :param black_canvas_height: 黑色背景的高度
-    :param interval: 圖片之間的間隔像素
     :return: 處理過的圖片結果列表
     """
-
-
     for root, dirs, files in os.walk(root_dir):
 
         # 如果資料夾開頭名稱有"myhahapoint" 跳過
         if root.find("myhahapoint") != -1:
             continue
-
         # 找到符合條件的照片
         target_files = [
             file for file in files
             if any(file.lower().startswith(prefix.lower()) for prefix in target_prefixes)
         ]
-
         if target_files:  # 如果有符合條件的照片
             # 結果圖片
             processed_results = []
             # 呼叫處理方法處理所有照片
             for target_file in target_files:
-                # 紀錄時間
-                # start_time = time.time()
-                edge = 0
-                max_attempts = 50
-
-                origin_card = Cards.Query_card()
-                origin_card.name = target_file
-                while edge < max_attempts:
-                    edge_w = edge // 10
-                    edge_h = edge % 10
-                    card = Leo001.rec_card(root + '/' + target_file, target_file, edge_w, edge_h)
-                    origin_card = merge_cards(origin_card, card)
-                    if is_card_is_match(origin_card):
-                        break
-                    card = Leo001.rec_card(root + '/' + target_file, target_file, edge_w, edge_h, is_rotate=True)
-                    origin_card = merge_cards(origin_card, card)
-                    if is_card_is_match(origin_card):
-                        break
-                    card = Leo001.rec_card_with_black_canvas(root + '/' + target_file, target_file, edge_w, edge_h)
-                    if card is not None:
-                        origin_card = merge_cards(origin_card, card)
-                        if is_card_is_match(origin_card):
-                            break
-                    card = Leo001.rec_card_with_black_canvas(root + '/' + target_file, target_file, edge_w, edge_h, is_rotate = True)
-                    if card is not None:
-                        origin_card = merge_cards(origin_card, card)
-                        if is_card_is_match(origin_card):
-                            break
-                    edge += 1
-
-                # if edge == max_attempts:
-                #     print(f"Failed to recognize card: {target_file} after {max_attempts} attempts., root: {root}")
-
-                if not is_card_is_match(origin_card):
-                    # 嘗試旋轉0
-                    rotate_degree = -1
-                    rotate_180 = 180
-                    while rotate_degree <= 10:
-                        # 轉1
-                        rot = rotate_degree
-                        card = Leo001.rec_card(root + '/' + target_file, target_file, 0, 0, is_rotate=True,
-                                               rotate_degree=rot)
-                        origin_card = merge_cards(origin_card, card)
-                        if is_card_is_match(origin_card):
-                            break
-                        # 180度 轉1
-                        rot = rotate_180 + rotate_degree
-                        card = Leo001.rec_card(root + '/' + target_file, target_file, 0, 0, is_rotate=True,
-                                               rotate_degree=rot)
-                        origin_card = merge_cards(origin_card, card)
-                        if is_card_is_match(origin_card):
-                            break
-                        # 倒轉1
-                        rot = -rotate_degree
-                        card = Leo001.rec_card(root + '/' + target_file, target_file, 0, 0, is_rotate=True,
-                                               rotate_degree=rot)
-                        origin_card = merge_cards(origin_card, card)
-                        if is_card_is_match(origin_card):
-                            break
-                        # 180度 倒轉1
-                        rot = -rotate_degree - rotate_180
-                        card = Leo001.rec_card(root + '/' + target_file, target_file, 0, 0, is_rotate=True,
-                                               rotate_degree=rot)
-                        origin_card = merge_cards(origin_card, card)
-                        if is_card_is_match(origin_card):
-                            break
-                        rotate_degree += 1
-
+                origin_card = rec_card_process(root + '/' + target_file, target_file)
                 if origin_card is not None:
                     # print_origin_card(origin_card)
                     processed_results.append(origin_card)
-            # end_time = time.time()
-            # # 計算運行時間
-            # elapsed_time = end_time - start_time
-            # print(f"運行時間: {elapsed_time:.4f} 秒")
             write_result(root, processed_results)
-            # processed_results.append((root, result_image))  # 保存結果
-    # return processed_results
 
 def is_card_is_match(origin_card):
     if origin_card.best_rank_match != "Unknown" and origin_card.best_suit_match != "Unknown":
         return True
     return False
 
-# 測試方法
-root_directory = 'C:/Users/LeoAlliance/Desktop/analysis/analysis/2024-11-20_09-47-08'  # 替換為你的根目錄路徑
-# root_directory = 'C:/Users/LeoAlliance/Desktop/fail/test'  # 替換為你的根目錄路徑
-result_images = find_and_process_images(
-    root_dir=root_directory,               # 根目錄
-    target_prefixes=['banker', 'player'],  # 符合條件的檔案前綴
-    card_image_width=200,                  # 卡片寬度
-    card_image_height=300,                 # 卡片高度
-    black_canvas_width=1280,               # 黑色背景寬度
-    black_canvas_height=720,               # 黑色背景高度
-    interval=40                            # 圖片間隔
-)
+# 測試方法1 (遍歷所有資料夾, 找到以指定前綴開頭的照片, 並處理所在資料夾中的所有照片, 最後將結果保存到指定資料夾)
+# root_directory = 'C:/Users/LeoAlliance/Desktop/analysis/analysis/2024-11-20_09-47-08'  # 替換為你的根目錄路徑
+# # root_directory = 'C:/Users/LeoAlliance/Desktop/fail/test'  # 替換為你的根目錄路徑
+# result_images = find_and_process_images(
+#     root_dir=root_directory,               # 根目錄
+#     target_prefixes=['banker', 'player'],  # 符合條件的檔案前綴
+# )
+
+# 測試方法2 (處理單張圖片, 回傳處理後的 Query_card 對象)
+img_path = 'C:/Users/LeoAlliance/Desktop/analysis/analysis/2024-11-20_09-47-08/player3.png'  # 圖片路徑
+img_name = 'player3.png'  # 圖片名稱
+card = rec_card_process(img_path, img_name)
+print_origin_card(card)
+
+
