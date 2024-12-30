@@ -52,7 +52,7 @@ class Query_card:
         self.contour = [] # Contour of card
         self.width, self.height = 0, 0 # Width and height of card
         self.corner_pts = [] # Corner points of card
-        self.center = [] # Center point of card
+        self.center = [] # Center point of card     卡片中心點的位置
         self.warp = [] # 200x300, flattened, grayed, blurred image
         self.rank_img = [] # Thresholded, sized image of card's rank            //改成多個圖片
         self.best_rank_index = 0 #這個是最好的rank圖片 只會有一張
@@ -379,7 +379,6 @@ def preprocess_card(contour, image):
             x1,y1,w1,h1 = cv2.boundingRect(Qrank_cnts[ri])
             # print("面積: ", cv2.contourArea(Qrank_cnts[ri]))
 
-
             Qrank_roi = Qrank[y1:y1+h1, x1:x1+w1]
             Qrank_sized = cv2.resize(Qrank_roi, (RANK_WIDTH,RANK_HEIGHT), 0, 0)
             # qCard.rank_img = Qrank_sized
@@ -400,7 +399,7 @@ def preprocess_card(contour, image):
             if area < MIN_AREA_THRESHOLD:   # 面積太小的輪廓不處理
                 continue
 
-            x2,y2,w2,h2 = cv2.boundingRect(Qsuit_cnts[0])
+            x2,y2,w2,h2 = cv2.boundingRect(Qsuit_cnts[si])
             Qsuit_roi = Qsuit[y2:y2+h2, x2:x2+w2]
             Qsuit_sized = cv2.resize(Qsuit_roi, (SUIT_WIDTH, SUIT_HEIGHT), 0, 0)
             qCard.suit_img.append(Qsuit_sized)

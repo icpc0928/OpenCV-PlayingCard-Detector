@@ -25,18 +25,32 @@ def merge_cards(original_card, new_card):
         new_value = getattr(new_card, attr)
 
         # 判斷新值是否是預設值
-        if is_default_value(new_value):
+        if is_default_value_without_diff_and_match(new_value, attr):
             # 如果是預設值，保留原值
             setattr(new_card, attr, original_value)
+    # set match and diff
+
+    if new_card.rank_diff > original_card.rank_diff != 0:
+        setattr(new_card, "rank_diff", original_card.rank_diff)
+        setattr(new_card, "best_rank_match", original_card.best_rank_match)
+    if new_card.suit_diff > original_card.suit_diff != 0:
+        setattr(new_card, "suit_diff", original_card.suit_diff)
+        setattr(new_card, "best_suit_match", original_card.best_suit_match)
+    print(f"match: {new_card.best_rank_match}, diff: {new_card.best_suit_match}")
 
     return new_card
-def is_default_value(value):
+def is_default_value_without_diff_and_match(value, key):
     """
     判斷屬性是否是預設值。
 
     :param value: 屬性值
     :return: 如果是預設值，返回 True；否則返回 False
     """
+    # print(f"key: {key}, value: {value}")
+
+    if key == "best_rank_match" or key == "best_suit_match" or key == "rank_diff" or key == "suit_diff":
+        return False
+
     if isinstance(value, str) and value == "Unknown":
         return True
         # 空列表
@@ -235,7 +249,7 @@ def is_card_is_match(origin_card):
     return False
 
 # 測試方法
-root_directory = 'C:/Users/LeoAlliance/Desktop/analysis/analysis'  # 替換為你的根目錄路徑
+root_directory = 'C:/Users/LeoAlliance/Desktop/analysis/analysis/2024-11-20_09-47-08'  # 替換為你的根目錄路徑
 # root_directory = 'C:/Users/LeoAlliance/Desktop/fail/test'  # 替換為你的根目錄路徑
 result_images = find_and_process_images(
     root_dir=root_directory,               # 根目錄
