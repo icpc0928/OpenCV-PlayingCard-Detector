@@ -1,13 +1,12 @@
+import json
 import os
-import time
 
 import cv2
-import json
-
 import numpy as np
 
 import Cards
-import Leo001
+import CardDetectAgent
+
 
 def merge_cards(original_card, new_card):
     """
@@ -139,20 +138,20 @@ def rec_card_process(img_path, img_name):
     while edge < max_attempts:
         edge_w = edge // 10
         edge_h = edge % 10
-        card = Leo001.rec_card(img_path, img_name, edge_w, edge_h)
+        card = CardDetectAgent.rec_card(img_path, img_name, edge_w, edge_h)
         origin_card = merge_cards(origin_card, card)
         if is_card_is_match(origin_card):
             break
-        card = Leo001.rec_card(img_path, img_name, edge_w, edge_h, is_rotate=True)
+        card = CardDetectAgent.rec_card(img_path, img_name, edge_w, edge_h, is_rotate=True)
         origin_card = merge_cards(origin_card, card)
         if is_card_is_match(origin_card):
             break
-        card = Leo001.rec_card_with_black_canvas(img_path, img_name, edge_w, edge_h)
+        card = CardDetectAgent.rec_card_with_black_canvas(img_path, img_name, edge_w, edge_h)
         if card is not None:
             origin_card = merge_cards(origin_card, card)
             if is_card_is_match(origin_card):
                 break
-        card = Leo001.rec_card_with_black_canvas(img_path, img_name, edge_w, edge_h, is_rotate=True)
+        card = CardDetectAgent.rec_card_with_black_canvas(img_path, img_name, edge_w, edge_h, is_rotate=True)
         if card is not None:
             origin_card = merge_cards(origin_card, card)
             if is_card_is_match(origin_card):
@@ -169,28 +168,28 @@ def rec_card_process(img_path, img_name):
         while rotate_degree <= 10:
             # 轉1
             rot = rotate_degree
-            card = Leo001.rec_card(img_path, img_name, 0, 0, is_rotate=True,
+            card = CardDetectAgent.rec_card(img_path, img_name, 0, 0, is_rotate=True,
                                    rotate_degree=rot)
             origin_card = merge_cards(origin_card, card)
             if is_card_is_match(origin_card):
                 break
             # 180度 轉1
             rot = rotate_180 + rotate_degree
-            card = Leo001.rec_card(img_path, img_name, 0, 0, is_rotate=True,
+            card = CardDetectAgent.rec_card(img_path, img_name, 0, 0, is_rotate=True,
                                    rotate_degree=rot)
             origin_card = merge_cards(origin_card, card)
             if is_card_is_match(origin_card):
                 break
             # 倒轉1
             rot = -rotate_degree
-            card = Leo001.rec_card(img_path, img_name, 0, 0, is_rotate=True,
+            card = CardDetectAgent.rec_card(img_path, img_name, 0, 0, is_rotate=True,
                                    rotate_degree=rot)
             origin_card = merge_cards(origin_card, card)
             if is_card_is_match(origin_card):
                 break
             # 180度 倒轉1
             rot = -rotate_degree - rotate_180
-            card = Leo001.rec_card(img_path, img_name, 0, 0, is_rotate=True,
+            card = CardDetectAgent.rec_card(img_path, img_name, 0, 0, is_rotate=True,
                                    rotate_degree=rot)
             origin_card = merge_cards(origin_card, card)
             if is_card_is_match(origin_card):
